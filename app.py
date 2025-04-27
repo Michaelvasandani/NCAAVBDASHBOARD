@@ -1,18 +1,17 @@
 import pandas as pd
 import streamlit as st
-import matplotlib.pyplot as plt
-import plotly.express as px
-import plotly.graph_objects as go
-import seaborn as sns
-import numpy as np
-
-# Set page configuration
+# IMPORTANT: This must be the first Streamlit command
 st.set_page_config(
     page_title="NCAA Volleyball Dashboard",
     page_icon="🏐",
     layout="wide",
     initial_sidebar_state="expanded"
 )
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+import seaborn as sns
+import numpy as np
 
 # Custom CSS to enhance the look and feel
 st.markdown("""
@@ -85,50 +84,24 @@ st.markdown("""
         font-size: 0.8rem;
     }
     
-    /* Simple volleyball court using CSS */
-    .volleyball-court {
-        background-color: #f0f7ff;
-        border: 3px solid #273469;
-        border-radius: 5px;
+    .filter-container {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
+    }
+    
+    .volleyball-image-container {
         width: 100%;
-        height: 300px;
-        position: relative;
         margin-bottom: 20px;
+        text-align: center;
     }
     
-    .volleyball-net {
-        position: absolute;
-        top: 50%;
-        left: 0;
-        right: 0;
-        height: 5px;
-        background-color: #C75D68;
-        transform: translateY(-50%);
-    }
-    
-    .volleyball-line-1, .volleyball-line-2 {
-        position: absolute;
-        left: 0;
-        right: 0;
-        height: 2px;
-        background-color: #273469;
-        border-style: dashed;
-    }
-    
-    .volleyball-line-1 {
-        top: 33%;
-    }
-    
-    .volleyball-line-2 {
-        top: 67%;
-    }
-    
-    .volleyball-icon {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 50px;
+    .volleyball-image {
+        max-width: 100%;
+        border-radius: 5px;
+        border: 2px solid #273469;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -163,18 +136,40 @@ try:
     vb = vb[vb['Conference'] != 'nan']
     vb = vb[vb['Conference'] != '']
     
-    # Sidebar
+    # Sidebar for general dashboard settings and information
     with st.sidebar:
-        # Simple volleyball court with HTML/CSS instead of Plotly
-        st.markdown("""
-        <div class="volleyball-court">
-            <div class="volleyball-net"></div>
-            <div class="volleyball-line-1"></div>
-            <div class="volleyball-line-2"></div>
-            <div class="volleyball-icon">🏐</div>
-        </div>
-        """, unsafe_allow_html=True)
+        # Try multiple approaches to display the image
+        # Approach 1: Using Streamlit's native image function
+        try:
+            from PIL import Image
+            import os
+            # Try multiple possible paths
+            image_paths = [
+                "data/volleyballWomens.png",
+                "static/volleyballWomens.png",
+                "assets/volleyballWomens.png",
+                "images/volleyballWomens.png",
+                "./volleyballWomens.png"
+            ]
+            
+            image_loaded = False
+            for path in image_paths:
+                if os.path.exists(path):
+                    volleyball_image = Image.open(path)
+                    st.image(volleyball_image, caption="Women's Volleyball", use_column_width=True)
+                    image_loaded = True
+                    break
+            
+            if not image_loaded:
+                # Fallback to basic text if image fails to load
+                st.markdown("🏐 **NCAA Women's Volleyball**")
+                st.info("Image could not be found. Please check the file path.")
+        except Exception as e:
+            st.error(f"Error loading image: {e}")
+            # Fallback to basic text if image fails to load
+            st.markdown("🏐 **NCAA Women's Volleyball**")
         
+        # Conference filter - moved the main analysis controls to the Team Rankings tab
         st.markdown("### Dashboard Settings")
         
         # Conference filter - Convert all values to strings before sorting
@@ -188,23 +183,6 @@ try:
             options=all_conferences,
             default=all_conferences[:5] if len(all_conferences) >= 5 else all_conferences
         )
-        
-        # Metric selection
-        selected_metric = st.selectbox(
-            "Primary Analysis Metric:",
-            options=["kills_per_set", "blocks_per_set", "hitting_pctg", "win_loss_pctg", "aces_per_set"],
-            index=0,
-            format_func=lambda x: {
-                "kills_per_set": "Kills per Set",
-                "blocks_per_set": "Blocks per Set",
-                "hitting_pctg": "Hitting Percentage",
-                "win_loss_pctg": "Win-Loss Percentage",
-                "aces_per_set": "Aces per Set"
-            }[x]
-        )
-        
-        # Top N teams slider
-        top_n = st.slider("Number of Top Teams to Display:", min_value=5, max_value=20, value=10, step=1)
         
         st.markdown("---")
         
@@ -279,6 +257,29 @@ try:
     with tab1:
         st.markdown('<h2 class="sub-header">Top Teams Analysis</h2>', unsafe_allow_html=True)
         
+        # Move the metric selection and top N teams to this tab
+        st.markdown('<div class="filter-container">', unsafe_allow_html=True)
+        filter_cols = st.columns([1, 1])
+        with filter_cols[0]:
+            # Metric selection - moved from sidebar
+            selected_metric = st.selectbox(
+                "Primary Analysis Metric:",
+                options=["kills_per_set", "blocks_per_set", "hitting_pctg", "win_loss_pctg", "aces_per_set"],
+                index=0,
+                format_func=lambda x: {
+                    "kills_per_set": "Kills per Set",
+                    "blocks_per_set": "Blocks per Set",
+                    "hitting_pctg": "Hitting Percentage",
+                    "win_loss_pctg": "Win-Loss Percentage",
+                    "aces_per_set": "Aces per Set"
+                }[x]
+            )
+            
+        with filter_cols[1]:
+            # Top N teams slider - moved from sidebar
+            top_n = st.slider("Number of Top Teams to Display:", min_value=5, max_value=20, value=10, step=1)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
         # Sort data based on selected metric
         metric_name_map = {
             "kills_per_set": "Kills per Set",
@@ -331,22 +332,20 @@ try:
             
             # Format the text values displayed on the bars
             if selected_metric == 'hitting_pctg' or selected_metric == 'win_loss_pctg':
-                fig.update_traces(texttemplate='%{text:.3f}', textposition='outside')
+                fig.update_traces()
             else:
-                fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+                fig.update_traces()
             
             # Display the plotly chart
             st.plotly_chart(fig, use_container_width=True)
         
         with col2:
             st.markdown("### Team Details")
-            st.dataframe(
-                top_teams.rename(columns={
-                    selected_metric: metric_name_map[selected_metric]
-                }),
-                use_container_width=True,
-                hide_index=True
-            )
+            # For older versions of Streamlit, use the regular dataframe method without hide_index
+            display_df = top_teams.rename(columns={
+                selected_metric: metric_name_map[selected_metric]
+            }).reset_index(drop=True)
+            st.dataframe(display_df, use_container_width=True)
             
             # Add a metric interpretation
             st.markdown('<div class="highlight">', unsafe_allow_html=True)
@@ -365,8 +364,8 @@ try:
     with tab2:
         st.markdown('<h2 class="sub-header">Conference Analysis</h2>', unsafe_allow_html=True)
         
-        # Create conference aggregated data
         try:
+            # Create conference aggregated data
             conf_data = filtered_vb.groupby('Conference').agg({
                 'hitting_pctg': 'mean',
                 'kills_per_set': 'mean',
@@ -376,73 +375,114 @@ try:
                 'Team': 'count'
             }).reset_index().rename(columns={'Team': 'Number_of_Teams'})
             
+            # Use the selected metric from the Team Rankings tab for sorting
             conf_data = conf_data.sort_values(by=selected_metric, ascending=False)
             
-            # Two columns layout
-            col1, col2 = st.columns([3, 2])
+            # Create a better radar chart that uses actual values
+            fig = go.Figure()
             
-            with col1:
-                # Create a radar chart to compare conferences
-                fig = go.Figure()
-                
-                # Normalize the data for radar chart
-                radar_data = conf_data.copy()
-                for col in ['hitting_pctg', 'kills_per_set', 'blocks_per_set', 'aces_per_set', 'win_loss_pctg']:
-                    min_val = radar_data[col].min()
-                    max_val = radar_data[col].max()
-                    if max_val > min_val:  # Prevent division by zero
-                        radar_data[col] = (radar_data[col] - min_val) / (max_val - min_val)
-                    else:
-                        radar_data[col] = 0.5  # Default value if all values are the same
-                
-                # Add traces for top 5 conferences (or fewer if not enough)
-                max_conferences = min(5, len(radar_data))
-                for i, (idx, row) in enumerate(radar_data.head(max_conferences).iterrows()):
-                    fig.add_trace(go.Scatterpolar(
-                        r=[row['hitting_pctg'], row['kills_per_set'], row['blocks_per_set'], 
-                           row['aces_per_set'], row['win_loss_pctg'], row['hitting_pctg']],
-                        theta=['Hitting %', 'Kills/Set', 'Blocks/Set', 'Aces/Set', 'Win %', 'Hitting %'],
-                        fill='toself',
-                        name=row['Conference'],
-                        line_color=px.colors.qualitative.Plotly[i % len(px.colors.qualitative.Plotly)]
-                    ))
-                
-                fig.update_layout(
-                    polar=dict(
-                        radialaxis=dict(
-                            visible=True,
-                            range=[0, 1]
-                        )
-                    ),
-                    title="Top Conferences Statistical Comparison",
-                    showlegend=True,
-                    title_font=dict(size=24, color="#273469"),
-                    height=600
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
+            # Define colors
+            plotly_colors = px.colors.qualitative.Plotly
             
-            with col2:
-                # Create box plot using Plotly
-                fig = px.box(
-                    filtered_vb, 
-                    x='Conference', 
-                    y='win_loss_pctg',
-                    color='Conference',
-                    title="Win Percentage Distribution by Conference",
-                    labels={'win_loss_pctg': 'Win Percentage', 'Conference': ''},
-                    height=600
-                )
+            # Get top 5 conferences (or fewer if not enough)
+            max_conferences = min(5, len(conf_data))
+            
+            # For each conference, add a trace with PROPERLY SCALED values
+            for i, (_, row) in enumerate(conf_data.head(max_conferences).iterrows()):
+                # Better scaling method:
+                # Instead of min-max normalization, we divide by predefined maximums
+                # This preserves the relative differences between values
                 
-                fig.update_layout(
-                    xaxis={'categoryorder': 'mean descending'},
+                # Define reasonable max values for scaling (slightly above actual max values)
+                max_values = {
+                    'kills_per_set': 15.0,      # Max is around 13, so 15 gives headroom
+                    'hitting_pctg': 0.3,        # Max is around 0.23, so 0.3 gives headroom
+                    'blocks_per_set': 3.0,      # Max is around 2.3, so 3 gives headroom
+                    'aces_per_set': 2.0,        # Max is around 1.6, so 2 gives headroom
+                    'win_loss_pctg': 1.0        # This is already 0-1 scale
+                }
+                
+                # Create scaled values that maintain proper relationships
+                scaled_values = [
+                    row['kills_per_set'] / max_values['kills_per_set'],
+                    row['hitting_pctg'] / max_values['hitting_pctg'],
+                    row['blocks_per_set'] / max_values['blocks_per_set'],
+                    row['aces_per_set'] / max_values['aces_per_set'],
+                    row['win_loss_pctg'] / max_values['win_loss_pctg'],
+                    row['kills_per_set'] / max_values['kills_per_set']
+                ]
+                
+                fig.add_trace(go.Scatterpolar(
+                    r=scaled_values,
+                    theta=['Kills/Set', 'Hitting %', 'Blocks/Set', 'Aces/Set', 'Win %', 'Kills/Set'],
+                    fill='toself',
+                    name=row['Conference'],
+                    line_color=plotly_colors[i % len(plotly_colors)],
+                    # Add hover data with actual values
+                    hovertemplate='<b>%{theta}</b><br>' +
+                                 '<b>Conference:</b> ' + row['Conference'] + '<br>' +
+                                 '<b>Value:</b> %{customdata:.2f}<extra></extra>',
+                    customdata=[
+                        row['kills_per_set'],
+                        row['hitting_pctg'],
+                        row['blocks_per_set'],
+                        row['aces_per_set'],
+                        row['win_loss_pctg'],
+                        row['kills_per_set']
+                    ]
+                ))
+            
+            # Add reference circles with value labels
+            # These concentric circles provide context for the scales
+            reference_circle_values = [0.2, 0.4, 0.6, 0.8, 1.0]
+            for rv in reference_circle_values:
+                # Add invisible trace for reference circles
+                fig.add_trace(go.Scatterpolar(
+                    r=[rv, rv, rv, rv, rv, rv],
+                    theta=['Kills/Set', 'Hitting %', 'Blocks/Set', 'Aces/Set', 'Win %', 'Kills/Set'],
+                    mode='lines',
+                    line=dict(color='rgba(200, 200, 200, 0.2)'),
                     showlegend=False,
-                    title_font=dict(size=24, color="#273469"),
-                    yaxis=dict(range=[0, 1]),
-                    xaxis_tickangle=-45
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
+                    hoverinfo='skip'
+                ))
+            
+            # Update layout with tick labels that show actual values
+            fig.update_layout(
+                polar=dict(
+                    radialaxis=dict(
+                        visible=True,
+                        range=[0, 1],
+                        tickvals=reference_circle_values,
+                        ticktext=[
+                            # Format actual values at each reference point
+                            f"K:{rv*max_values['kills_per_set']:.1f} H:{rv*max_values['hitting_pctg']:.3f} B:{rv*max_values['blocks_per_set']:.1f}",
+                            f"K:{rv*max_values['kills_per_set']:.1f} H:{rv*max_values['hitting_pctg']:.3f} B:{rv*max_values['blocks_per_set']:.1f}",
+                            f"K:{rv*max_values['kills_per_set']:.1f} H:{rv*max_values['hitting_pctg']:.3f} B:{rv*max_values['blocks_per_set']:.1f}",
+                            f"K:{rv*max_values['kills_per_set']:.1f} H:{rv*max_values['hitting_pctg']:.3f} B:{rv*max_values['blocks_per_set']:.1f}",
+                            f"K:{rv*max_values['kills_per_set']:.1f} H:{rv*max_values['hitting_pctg']:.3f} B:{rv*max_values['blocks_per_set']:.1f}"
+                        ]
+                    ),
+                    angularaxis=dict(
+                        direction="clockwise"
+                    )
+                ),
+                title="Conference Statistical Comparison (Properly Scaled)",
+                showlegend=True,
+                title_font=dict(size=24, color="#273469"),
+                height=600
+            )
+            
+            # Display the radar chart
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Add an explanation note about the radar chart
+            st.markdown("""
+            <div class="highlight">
+            <strong>About the radar chart:</strong> This chart shows how each conference performs across five key metrics. 
+            The values are properly scaled to maintain the true relationships between the numbers in the data table below. 
+            Hover over each point to see the exact values for each metric.
+            </div>
+            """, unsafe_allow_html=True)
             
             # Conference stats table
             st.markdown("### Conference Performance Metrics")
@@ -463,9 +503,29 @@ try:
                 'aces_per_set': 'Aces/Set',
                 'win_loss_pctg': 'Win %',
                 'Number_of_Teams': 'Teams'
-            })
+            }).reset_index(drop=True)
             
-            st.dataframe(display_conf_data, use_container_width=True, hide_index=True)
+            # Use regular dataframe method for older Streamlit versions
+            st.dataframe(display_conf_data, use_container_width=True)
+            
+            # Create customized insights based on actual data
+            top_conference = conf_data.iloc[0]['Conference']
+            highest_hitting = conf_data.sort_values('hitting_pctg', ascending=False).iloc[0]
+            highest_blocks = conf_data.sort_values('blocks_per_set', ascending=False).iloc[0]
+            highest_aces = conf_data.sort_values('aces_per_set', ascending=False).iloc[0]
+            lowest_win = conf_data.sort_values('win_loss_pctg').iloc[0]
+            
+            # Add conference insights
+            st.markdown(f"""
+            <div class="highlight">
+            <strong>Conference Insights:</strong><br>
+            • {highest_blocks['Conference']} leads in blocks per set ({highest_blocks['blocks_per_set']:.2f}) and has a {highest_blocks['win_loss_pctg']:.1%} win percentage.<br>
+            • {highest_hitting['Conference']} has the highest hitting percentage ({highest_hitting['hitting_pctg']:.3f}) among the displayed conferences.<br>
+            • {highest_aces['Conference']} records the most aces per set ({highest_aces['aces_per_set']:.2f}) despite having fewer teams ({highest_aces['Number_of_Teams']}).<br>
+            • {lowest_win['Conference']} has the lowest win percentage ({lowest_win['win_loss_pctg']:.1%}) among the selected conferences.
+            </div>
+            """, unsafe_allow_html=True)
+            
         except Exception as e:
             st.error(f"Error with Conference Analysis: {e}")
             st.info("This error might be due to data issues with your Conference column. Please check your data.")
@@ -479,79 +539,44 @@ try:
             # Calculate dominance score
             filtered_vb['dominance_score'] = (
                 filtered_vb['hitting_pctg'] * 0.4 +
-                filtered_vb['blocks_per_set'] * 0.2 +
-                filtered_vb['aces_per_set'] * 0.2 -
-                filtered_vb['opp_hitting_pctg'] * 0.2
+                filtered_vb['blocks_per_set'] * 0.1 +
+                filtered_vb['kills_per_set'] * 0.4 -
+                filtered_vb['opp_hitting_pctg'] * 0.1
             )
             
-            # Sort by dominance score
+            # Sort by dominance score - use the top_n value from the Team Rankings tab
             top_dominant = filtered_vb[['Team', 'Conference', 'dominance_score', 'win_loss_pctg', 'hitting_pctg']].sort_values(
                 by='dominance_score', ascending=False
             ).head(top_n)
             
-            col1, col2 = st.columns([3, 2])
+            # Create a heat map showing correlation between metrics
+            corr_metrics = ['win_loss_pctg', 'hitting_pctg', 'blocks_per_set', 'kills_per_set', 'aces_per_set', 'opp_hitting_pctg']
+            corr_data = filtered_vb[corr_metrics].corr()
             
-            with col1:
-                # Create a scatter plot to show relationship between dominance and win percentage
-                fig = px.scatter(
-                    filtered_vb,
-                    x='dominance_score',
-                    y='win_loss_pctg',
-                    color='Conference',
-                    size='hitting_pctg',
-                    size_max=15,
-                    hover_name='Team',
-                    labels={
-                        'dominance_score': 'Dominance Score',
-                        'win_loss_pctg': 'Win Percentage',
-                        'hitting_pctg': 'Hitting Percentage'
-                    },
-                    title='Team Dominance Score vs. Win Percentage',
-                    height=600
-                )
-                
-                # Add a trendline
-                fig.update_layout(
-                    title_font=dict(size=24, color="#273469"),
-                    legend_title_text='Conference',
-                    xaxis=dict(title='Dominance Score', tickformat='.3f'),
-                    yaxis=dict(title='Win Percentage', tickformat='.0%')
-                )
-                
-                # Add a trendline
-                fig.update_traces(marker=dict(line=dict(width=1, color='DarkSlateGrey')))
-                
-                st.plotly_chart(fig, use_container_width=True)
+            # Use matplotlib/seaborn for the heatmap
+            fig, ax = plt.subplots(figsize=(10, 8))
+            sns.heatmap(
+                corr_data, 
+                annot=True, 
+                cmap='coolwarm', 
+                vmin=-1, 
+                vmax=1, 
+                fmt='.2f',
+                linewidths=0.5,
+                ax=ax
+            )
+            ax.set_title('Correlation Between Key Metrics', fontsize=18, color='#273469')
+            plt.tight_layout()
             
-            with col2:
-                # Create a heat map showing correlation between metrics
-                corr_metrics = ['win_loss_pctg', 'hitting_pctg', 'blocks_per_set', 'kills_per_set', 'aces_per_set', 'opp_hitting_pctg']
-                corr_data = filtered_vb[corr_metrics].corr()
-                
-                # Use matplotlib/seaborn for the heatmap
-                fig, ax = plt.subplots(figsize=(8, 6))
-                sns.heatmap(
-                    corr_data, 
-                    annot=True, 
-                    cmap='coolwarm', 
-                    vmin=-1, 
-                    vmax=1, 
-                    fmt='.2f',
-                    linewidths=0.5,
-                    ax=ax
-                )
-                ax.set_title('Correlation Between Key Metrics', fontsize=18, color='#273469')
-                plt.tight_layout()
-                
-                st.pyplot(fig)
-                
-                st.markdown("""
-                <div class="highlight">
-                <strong>Interpretation:</strong> The correlation matrix shows how different volleyball metrics relate to each other. 
-                Strong positive correlations (close to 1.0) indicate that as one metric increases, the other tends to increase as well. 
-                Negative correlations suggest an inverse relationship between metrics.
-                </div>
-                """, unsafe_allow_html=True)
+            st.pyplot(fig)
+            
+            st.markdown("""
+            <div class="highlight">
+            <strong>Interpretation:</strong> The correlation matrix shows how different volleyball metrics relate to each other. 
+            Strong positive correlations (close to 1.0) indicate that as one metric increases, the other tends to increase as well. 
+            Negative correlations suggest an inverse relationship between metrics.
+            </div>
+            """, unsafe_allow_html=True)
             
             # Top dominant teams
             st.markdown("### Top Dominant Teams Analysis")
@@ -562,9 +587,9 @@ try:
             The <strong>Dominance Score</strong> is a composite metric that combines:
             <ul>
                 <li>40% weighting on hitting percentage</li>
-                <li>20% weighting on blocks per set</li>
-                <li>20% weighting on aces per set</li>
-                <li>20% negative weighting on opponent hitting percentage</li>
+                <li>10% weighting on blocks per set</li>
+                <li>40% weighting on hits per set</li>
+                <li>10% negative weighting on opponent hitting percentage</li>
             </ul>
             This provides a holistic measure of team performance beyond simple win percentage.
             </div>
@@ -587,19 +612,21 @@ try:
                 customdata=top_dominant['win_loss_pctg']
             ))
             
-            # Add conference labels as annotations
+            # Add conference labels as annotations with improved positioning
             for i, (_, row) in enumerate(top_dominant.iterrows()):
                 fig.add_annotation(
-                    x=row['dominance_score'],
+                    x=row['dominance_score'] * 0.85,  # Position at 85% of the bar length
                     y=row['Team'],
                     text=row['Conference'],
                     showarrow=False,
-                    xshift=10,
-                    align="left",
-                    xanchor="left",
-                    font=dict(size=10),
-                    bgcolor="rgba(255, 255, 255, 0.8)",
-                    bordercolor="rgba(0, 0, 0, 0.3)",
+                    align="center",
+                    yshift=0,  # Center vertically in the bar
+                    font=dict(
+                        size=10,
+                        color="white"  # White text for better visibility on blue bars
+                    ),
+                    bgcolor="rgba(39, 52, 105, 0.7)",  # Semi-transparent dark blue background
+                    bordercolor="rgba(255, 255, 255, 0.5)",
                     borderwidth=1,
                     borderpad=2
                 )
@@ -638,4 +665,5 @@ except Exception as e:
     2. Check that all required columns exist: Team, Conference, hitting_pctg, kills_per_set, blocks_per_set, etc.
     3. Ensure numeric columns contain only numbers (no text values)
     4. Look for missing values in your dataset
+    5. Check your Streamlit version with `streamlit --version` in your terminal
     """)
